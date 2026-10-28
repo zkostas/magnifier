@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Big Look – Magnifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bar: #000000;
+    --ink: #ffffff;
+    --key: #ffd60a;
+    --key-ink: #000000;
+    --on: #000000;
+    --on-ink: #ffd60a;
+    --stage: #000000;
+    color-scheme: dark;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bar: #000000; --ink: #ffffff; --key: #ffd60a; --key-ink: #000000;
+      --on: #000000; --on-ink: #ffd60a; --stage: #000000; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bar: #000000; --ink: #ffffff; --key: #ffd60a; --key-ink: #000000;
+    --on: #000000; --on-ink: #ffd60a; --stage: #000000; color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bar);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", "Verdana", "Segoe UI", sans-serif;
+    font-size: 22px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+  }
+
+  #stage {
+    position: relative; flex: 1; min-height: 0;
+    background: var(--stage); overflow: hidden; touch-action: none;
+  }
+  video {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transform-origin: center center;
+  }
+  #zoomBadge {
+    position: absolute; top: 12px; left: 12px;
+    background: var(--key); color: var(--key-ink);
+    font-weight: 700; font-size: 32px; line-height: 1;
+    padding: 10px 16px; border-radius: 14px;
+    border: 3px solid #000;
+  }
+  #frozenBadge {
+    position: absolute; top: 12px; right: 12px;
+    background: #000; color: #ffd60a; border: 3px solid #ffd60a;
+    font-weight: 700; font-size: 24px; padding: 10px 14px; border-radius: 14px;
+    display: none;
+  }
+  #frozenBadge.show { display: block; }
+
+  #start {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px; padding: 24px; text-align: center;
+    background: #000; color: #fff;
+  }
+  #start h1 { font-size: 48px; margin: 0; line-height: 1.1; color: #ffd60a; }
+  #start p { font-size: 24px; margin: 0; max-width: 22ch; line-height: 1.4; }
+  #startBtn {
+    font: inherit; font-size: 36px; font-weight: 700;
+    background: #ffd60a; color: #000; border: 4px solid #fff;
+    border-radius: 999px; padding: 24px 48px; cursor: pointer;
+  }
+  #msg { color: #ffd60a; font-size: 22px; max-width: 24ch; line-height: 1.4; }
+
+  #controls {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; padding: 12px;
+    background: var(--bar);
+  }
+  button.ctl {
+    font: inherit; font-weight: 700; font-size: 24px;
+    min-height: 84px; border-radius: 20px;
+    border: 4px solid #ffffff;
+    background: var(--key); color: var(--key-ink);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; cursor: pointer; padding: 6px;
+  }
+  button.ctl .sym { font-size: 40px; line-height: 1; }
+  button.ctl[aria-pressed="true"] { background: var(--on); color: var(--on-ink); border-color: #ffd60a; }
+  button.ctl:disabled { opacity: .35; }
+  button:focus-visible { outline: 5px solid #ffffff; outline-offset: 3px; }
+  #grayBtn { grid-column: span 3; min-height: 96px; font-size: 30px; flex-direction: row; gap: 14px; }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  @media (prefers-reduced-motion: no-preference) {
+    video { transition: filter .15s; }
+  }
+</style>
+</head>
+<body>
+  <main id="stage" aria-label="Magnified camera view">
+    <video id="video" playsinline muted autoplay></video>
+    <div id="zoomBadge" aria-hidden="true">2×</div>
+    <div id="frozenBadge" aria-hidden="true">Still picture</div>
+
+    <div id="start">
+      <h1>Big Look</h1>
+      <p>Point your phone at a price tag or newspaper to make it bigger.</p>
+      <button id="startBtn">Start camera</button>
+      <div id="msg" role="alert"></div>
+    </div>
+  </main>
+
+  <nav id="controls" aria-label="Magnifier controls">
+    <button class="ctl" id="outBtn" aria-label="Zoom out"><span class="sym">−</span>Smaller</button>
+    <button class="ctl" id="inBtn" aria-label="Zoom in"><span class="sym">+</span>Bigger</button>
+    <button class="ctl" id="lightBtn" aria-pressed="false" aria-label="Flashlight"><span class="sym">☀</span>Light</button>
+    <button class="ctl" id="freezeBtn" aria-pressed="false" aria-label="Freeze picture"><span class="sym">❚❚</span>Hold</button>
+    <button class="ctl" id="boldBtn" aria-pressed="false" aria-label="Strong contrast"><span class="sym">◐</span>Contrast</button>
+    <button class="ctl" id="invertBtn" aria-pressed="false" aria-label="Invert colors, white text on black"><span class="sym">⇄</span>Invert</button>
+    <button class="ctl" id="grayBtn" aria-pressed="false"><span class="sym">◑</span><span id="grayLabel">Gray: off</span></button>
+  </nav>
+
+  <div class="sr" aria-live="polite" id="live"></div>
+
+<script>
+(() => {
+  const video = document.getElementById('video');
+  const stage = document.getElementById('stage');
+  const start = document.getElementById('start');
+  const msg = document.getElementById('msg');
+  const live = document.getElementById('live');
+  const zoomBadge = document.getElementById('zoomBadge');
+  const frozenBadge = document.getElementById('frozenBadge');
+  const $ = id => document.getElementById(id);
+
+  const ZOOMS = [1, 1.5, 2, 3, 4, 6, 8];
+  let zi = 2;             // start at 2x
+  let gray = false, bold = false, invert = false, frozen = false, torch = false;
+  let track = null, nativeZoom = null;
+  let pan = { x: 0, y: 0 };
+
+  function say(t) { live.textContent = ''; setTimeout(() => live.textContent = t, 30); }
+  function buzz() { try { navigator.vibrate && navigator.vibrate(25); } catch (e) {} }
+
+  function applyFilter() {
+    const f = [];
+    if (gray) f.push('grayscale(1)');
+    if (bold) f.push('contrast(2.2) brightness(1.1)');
+    if (invert) f.push('invert(1)');
+    video.style.filter = f.join(' ') || 'none';
+  }
+
+  function applyZoom() {
+    const z = ZOOMS[zi];
+    zoomBadge.textContent = (z % 1 ? z.toFixed(1) : z) + '×';
+    let cssScale = z;
+    // Use the camera's own zoom when available (sharper), CSS for the rest.
+    if (nativeZoom && !frozen) {
+      const nz = Math.min(Math.max(z, nativeZoom.min), nativeZoom.max);
+      track.applyConstraints({ advanced: [{ zoom: nz }] }).catch(() => {});
+      cssScale = z / nz;
+    }
+    const maxPan = (cssScale - 1) / 2;
+    pan.x = Math.max(-maxPan, Math.min(maxPan, pan.x));
+    pan.y = Math.max(-maxPan, Math.min(maxPan, pan.y));
+    video.style.transform =
+      `translate(${pan.x * 100}%, ${pan.y * 100}%) scale(${cssScale})`;
+    $('outBtn').disabled = zi === 0;
+    $('inBtn').disabled = zi === ZOOMS.length - 1;
+  }
+
+  function setZoom(i) {
+    zi = Math.max(0, Math.min(ZOOMS.length - 1, i));
+    applyZoom(); buzz(); say('Zoom ' + ZOOMS[zi] + ' times');
+  }
+
+  function toggle(btn, val) { btn.setAttribute('aria-pressed', String(val)); }
+
+  function setGray(v) {
+    gray = v; toggle($('grayBtn'), gray);
+    $('grayLabel').textContent = gray ? 'Gray: on' : 'Gray: off';
+    applyFilter(); buzz(); say(gray ? 'Gray on' : 'Gray off, colors back');
+  }
+
+  async function startCamera() {
+    msg.textContent = '';
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      msg.textContent = 'This browser cannot use the camera. Open this page in Safari or Chrome.';
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      });
+      video.srcObject = stream;
+      await video.play();
+      track = stream.getVideoTracks()[0];
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (caps.zoom) nativeZoom = { min: caps.zoom.min, max: caps.zoom.max };
+      if (caps.focusMode && caps.focusMode.includes('continuous')) {
+        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+      }
+      if (!caps.torch) { $('lightBtn').disabled = true; $('lightBtn').setAttribute('aria-label', 'Flashlight not available on this phone'); }
+      start.style.display = 'none';
+      applyZoom(); applyFilter();
+      say('Camera on. Zoom 2 times. Double tap the picture to switch gray.');
+    } catch (err) {
+      msg.textContent = err && err.name === 'NotAllowedError'
+        ? 'Camera permission was blocked. Allow the camera in your browser settings, then tap Start camera again.'
+        : 'The camera could not start. Open this page directly in Safari or Chrome and try again.';
+    }
+  }
+
+  $('startBtn').addEventListener('click', startCamera);
+  $('inBtn').addEventListener('click', () => setZoom(zi + 1));
+  $('outBtn').addEventListener('click', () => setZoom(zi - 1));
+  $('grayBtn').addEventListener('click', () => setGray(!gray));
+  $('boldBtn').addEventListener('click', () => {
+    bold = !bold; toggle($('boldBtn'), bold); applyFilter(); buzz();
+    say(bold ? 'Strong contrast on' : 'Strong contrast off');
+  });
+  $('invertBtn').addEventListener('click', () => {
+    invert = !invert; toggle($('invertBtn'), invert); applyFilter(); buzz();
+    say(invert ? 'Colors inverted' : 'Colors normal');
+  });
+  $('freezeBtn').addEventListener('click', () => {
+    frozen = !frozen; toggle($('freezeBtn'), frozen);
+    frozenBadge.classList.toggle('show', frozen);
+    if (frozen) { video.pause(); say('Picture held. Drag with your finger to move around.'); }
+    else { video.play(); pan = { x: 0, y: 0 }; applyZoom(); say('Live camera'); }
+    buzz();
+  });
+  $('lightBtn').addEventListener('click', async () => {
+    if (!track) return;
+    torch = !torch;
+    try { await track.applyConstraints({ advanced: [{ torch }] }); }
+    catch (e) { torch = false; }
+    toggle($('lightBtn'), torch); buzz(); say(torch ? 'Light on' : 'Light off');
+  });
+
+  // Touch: double tap = gray switch, pinch = zoom, drag = move (when held)
+  let lastTap = 0, pinchStart = 0, pinchZi = zi, drag = null;
+  stage.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      pinchStart = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                              e.touches[0].clientY - e.touches[1].clientY);
+      pinchZi = zi; drag = null;
+    } else if (e.touches.length === 1) {
+      drag = { x: e.touches[0].clientX, y: e.touches[0].clientY, px: pan.x, py: pan.y, moved: false };
+    }
+  }, { passive: true });
+  stage.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && pinchStart) {
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                           e.touches[0].clientY - e.touches[1].clientY);
+      const steps = Math.round(Math.log2(d / pinchStart) * 2);
+      const target = Math.max(0, Math.min(ZOOMS.length - 1, pinchZi + steps));
+      if (target !== zi) { zi = target; applyZoom(); }
+    } else if (drag && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - drag.x, dy = e.touches[0].clientY - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 12) drag.moved = true;
+      if (frozen || !nativeZoom) {
+        const r = stage.getBoundingClientRect();
+        pan.x = drag.px + dx / r.width;
+        pan.y = drag.py + dy / r.height;
+        applyZoom();
+      }
+    }
+  }, { passive: true });
+  stage.addEventListener('touchend', e => {
+    if (pinchStart && e.touches.length < 2) { pinchStart = 0; say('Zoom ' + ZOOMS[zi] + ' times'); return; }
+    if (drag && !drag.moved && start.style.display === 'none') {
+      const now = Date.now();
+      if (now - lastTap < 350) { setGray(!gray); lastTap = 0; } else lastTap = now;
+    }
+    drag = null;
+  });
+  stage.addEventListener('dblclick', () => { if (start.style.display === 'none') setGray(!gray); });
+
+  // Turn the camera off when the app is in the background, to save battery
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && torch && track) {
+      torch = false; toggle($('lightBtn'), false);
+      track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+    }
+  });
+
+  applyZoom();
+})();
+</script>
+</body>
+</html>
