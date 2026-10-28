@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-buttons="green">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
@@ -77,29 +77,39 @@
   #start p { font-size: 24px; margin: 0; max-width: 22ch; line-height: 1.4; }
   #startBtn {
     font: inherit; font-size: 36px; font-weight: 700;
-    background: #ffd60a; color: #000; border: 4px solid #fff;
+    background: var(--b-bg); color: var(--b-ink); border: 4px solid var(--b-line);
     border-radius: 999px; padding: 24px 48px; cursor: pointer;
   }
   #msg { color: #ffd60a; font-size: 22px; max-width: 24ch; line-height: 1.4; }
 
   #controls {
     display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 10px; padding: 12px;
+    gap: 8px; padding: 8px;
     background: var(--bar);
   }
-  button.ctl {
-    font: inherit; font-weight: 700; font-size: 24px;
-    min-height: 84px; border-radius: 20px;
-    border: 4px solid #ffffff;
-    background: var(--key); color: var(--key-ink);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 2px; cursor: pointer; padding: 6px;
+  /* Button color choices */
+  :root {
+    --b-bg: #ffd60a; --b-ink: #000000; --b-line: #ffffff;
+    --b-on-bg: #000000; --b-on-ink: #ffd60a; --b-on-line: #ffd60a;
   }
-  button.ctl .sym { font-size: 40px; line-height: 1; }
-  button.ctl[aria-pressed="true"] { background: var(--on); color: var(--on-ink); border-color: #ffd60a; }
+  :root[data-buttons="green"] {
+    --b-bg: #000000; --b-ink: #3cff5a; --b-line: #ffd60a;
+    --b-on-bg: #3cff5a; --b-on-ink: #000000; --b-on-line: #ffd60a;
+  }
+  button.ctl {
+    font: inherit; font-weight: 700; font-size: 19px;
+    min-height: 62px; border-radius: 16px;
+    border: 4px solid var(--b-line);
+    background: var(--b-bg); color: var(--b-ink);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0; cursor: pointer; padding: 4px;
+  }
+  button.ctl .sym { font-size: 28px; line-height: 1; }
+  button.ctl[aria-pressed="true"] { background: var(--b-on-bg); color: var(--b-on-ink); border-color: var(--b-on-line); }
   button.ctl:disabled { opacity: .35; }
   button:focus-visible { outline: 5px solid #ffffff; outline-offset: 3px; }
-  #grayBtn { grid-column: span 3; min-height: 96px; font-size: 30px; flex-direction: row; gap: 14px; }
+  #grayBtn { grid-column: span 2; font-size: 24px; flex-direction: row; gap: 10px; }
+  #colorsBtn { flex-direction: row; gap: 6px; }
 
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   @media (prefers-reduced-motion: no-preference) {
@@ -129,6 +139,7 @@
     <button class="ctl" id="boldBtn" aria-pressed="false" aria-label="Strong contrast"><span class="sym">◐</span>Contrast</button>
     <button class="ctl" id="invertBtn" aria-pressed="false" aria-label="Invert colors, white text on black"><span class="sym">⇄</span>Invert</button>
     <button class="ctl" id="grayBtn" aria-pressed="false"><span class="sym">◑</span><span id="grayLabel">Gray: off</span></button>
+    <button class="ctl" id="colorsBtn" aria-label="Change button colors"><span class="sym">◧</span>Colors</button>
   </nav>
 
   <div class="sr" aria-live="polite" id="live"></div>
@@ -295,6 +306,20 @@
       torch = false; toggle($('lightBtn'), false);
       track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
     }
+  });
+
+  // Button colors: yellow (black letters) or green (green letters on black)
+  function setButtons(name, announce) {
+    document.documentElement.setAttribute('data-buttons', name);
+    try { localStorage.setItem('buttonColors', name); } catch (e) {}
+    if (announce) { buzz(); say(name === 'green' ? 'Green letters on black' : 'Black letters on yellow'); }
+  }
+  let savedColors = 'green';
+  try { savedColors = localStorage.getItem('buttonColors') || 'green'; } catch (e) {}
+  setButtons(savedColors === 'yellow' ? 'yellow' : 'green', false);
+  $('colorsBtn').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-buttons');
+    setButtons(cur === 'green' ? 'yellow' : 'green', true);
   });
 
   applyZoom();
